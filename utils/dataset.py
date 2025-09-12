@@ -240,35 +240,52 @@ def inference_process(pdb_path, pdb_name, device="cuda"):
     protbb, _ = read_pdb_to_protbb(pdb_path, return_chain_dict=True)
     seq_index = protbb.seq.detach().numpy()
     node, edge, _ = get_neighbor(protbb, noise_level=0, mask=False)
-    
     wt_list, mt_list, mt_position_list, res_position_list, pdb_id_list, chain_list = [], [], [], [], [], []
     wt_id_list, mt_id_list, node_in_list, edge_in_list = [], [], [], []
 
+
     with open(pdb_path, "r") as f:
-        mt_position = -1
+        mt_position = -1  
+        current_residue_pos = -1
+        process_flag = False
+
         for line in f:
             line = line.rstrip()
-            if line[:4] == "ATOM" and line[13:16].rstrip() == "CA":
-                mt_position += 1
-                wt = seq1(line[17:20])
-                chain = line[21:22]
-                position = line[22:27].strip()
-                wt_ids, mt_ids, node_ins, edge_ins, mutations = inference_extarct_feature(
-                    wt, mt_position, seq_index=seq_index, node=node, edge=edge
-                )
+            if line.startswith("ATOM"):
+                residue_pos = line[22:27].strip()
 
-                wt_id_list.extend(wt_ids)
-                mt_id_list.extend(mt_ids)
-                node_in_list.extend(node_ins)
-                edge_in_list.extend(edge_ins)
+                if residue_pos != current_residue_pos or process_flag:
+                    atoms_list = []
+                    current_residue_pos = residue_pos
 
-                for mt in mutations:
-                    wt_list.append(wt)
-                    chain_list.append(chain)
-                    mt_position_list.append(mt_position)
-                    res_position_list.append(position)
-                    pdb_id_list.append(pdb_name)
-                    mt_list.append(mt)
+                process_flag = False
+                atom_name = line[13:16].strip()
+                atoms_list.append(atom_name)
+
+                if all(atom in atoms_list for atom in ["CA", "C", "N", "O"]):
+                    mt_position += 1
+                    wt_residue = seq1(line[17:20])
+                    chain_id = line[21:22]
+
+                    wt_ids, mt_ids, node_features, edge_features, mutations = inference_extarct_feature(
+                        wt_residue, mt_position, seq_index=seq_index, node=node, edge=edge
+                    )
+
+                    wt_id_list.extend(wt_ids)
+                    mt_id_list.extend(mt_ids)
+                    node_in_list.extend(node_features)
+                    edge_in_list.extend(edge_features)
+
+                    for mt in mutations:
+                        wt_list.append(wt_residue)
+                        chain_list.append(chain_id)
+                        mt_position_list.append(mt_position)
+                        res_position_list.append(residue_pos)
+                        pdb_id_list.append(pdb_name)
+                        mt_list.append(mt)
+
+                    process_flag = True
+
 
     wt_ids = torch.stack(wt_id_list).to(device)
     mt_ids = torch.stack(mt_id_list).to(device)
