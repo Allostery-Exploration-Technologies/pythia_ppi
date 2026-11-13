@@ -103,7 +103,7 @@ def read_pdb_to_protbb(pdb_file: str, return_chain_dict=False):
 
 def get_neighbor(protbb, neighbor: int = 32, noise_level=0.0, train=False, mask=True):
     # L, 1, 3
-    device = "cuda"
+    device = protbb.ca.device
     L = len(protbb.ca)
     if L < neighbor:
         zero_prot = mk_zero_prot(neighbor)
