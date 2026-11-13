@@ -268,7 +268,7 @@ def inference_process(pdb_path, pdb_name, device="cuda"):
                     chain_id = line[21:22]
 
                     wt_ids, mt_ids, node_features, edge_features, mutations = inference_extarct_feature(
-                        wt_residue, mt_position, seq_index=seq_index, node=node, edge=edge
+                        wt_residue, mt_position, seq_index=seq_index, node=node, edge=edge, device=device
                     )
 
                     wt_id_list.extend(wt_ids)
